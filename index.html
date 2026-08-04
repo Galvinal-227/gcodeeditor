@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GCE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      /* Logo adaptif dengan tema */
+      link[rel="icon"] {
+        transition: filter 0.3s ease;
+      }
+      @media (prefers-color-scheme: dark) {
+        link[rel="icon"] {
+          filter: brightness(10);
+        }
+      }
+      @media (prefers-color-scheme: light) {
+        link[rel="icon"] {
+          filter: brightness(0.1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="https://js.puter.com/v2/"></script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

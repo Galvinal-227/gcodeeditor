@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Root variables untuk theme */
+:root {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #2d2d2d;
+  --bg-hover: #2a2d2e;
+  --bg-active: #3c3c3c;
+  --bg-editor: #1e1e1e;
+  --text-primary: #cccccc;
+  --text-secondary: #858585;
+  --text-white: #ffffff;
+  --border-color: #3c3c3c;
+  --accent-color: #0e639c;
+  --accent-hover: #1177bb;
+  --status-bar: #007acc;
+  --gold: #e8ab53;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #e8e8e8;
+  --bg-tertiary: #d4d4d4;
+  --bg-hover: #e0e0e0;
+  --bg-active: #c0c0c0;
+  --bg-editor: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-white: #1e1e1e;
+  --border-color: #cccccc;
+  --accent-color: #0e639c;
+  --accent-hover: #1177bb;
+  --status-bar: #007acc;
+  --gold: #b8860b;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  user-select: none;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Monaco Editor customizations */
+.monaco-editor {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+.monaco-editor .margin-view-overlays .line-numbers {
+  color: var(--text-secondary) !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Focus styles */
+input:focus,
+button:focus {
+  outline: none;
+}
+
+/* Custom selection color */
+::selection {
+  background: #264f78;
+  color: #ffffff;
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(14, 99, 156, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--accent-color);
+  animation: spin 0.8s ease-in-out infinite;
+}
+
+/* Utility classes for theme */
+.bg-editor {
+  background: var(--bg-editor);
+}
+.text-primary {
+  color: var(--text-primary);
+}
+.text-secondary {
+  color: var(--text-secondary);
+}
+.border-theme {
+  border-color: var(--border-color);
+}
