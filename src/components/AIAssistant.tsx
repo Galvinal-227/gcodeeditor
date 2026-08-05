@@ -16,7 +16,7 @@ import {
   AlertCircle,
   ExternalLink
 } from 'lucide-react';
-import puterService from '../services/puter.service';
+import puterService from '../service/puter.service';
 
 interface Message {
   id: string;
