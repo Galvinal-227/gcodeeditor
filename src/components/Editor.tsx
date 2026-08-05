@@ -12,6 +12,7 @@ interface EditorProps {
   onCopy?: () => void;
   onCut?: () => void;
   onPaste?: () => void;
+  onSelectAll?: () => void;
 }
 
 export interface EditorRef {
@@ -20,6 +21,7 @@ export interface EditorRef {
   copy: () => void;
   cut: () => void;
   paste: () => void;
+  selectAll: () => void;
   focus: () => void;
   getEditor: () => any;
   updateTheme: (theme: 'dark' | 'light') => void;
@@ -69,16 +71,18 @@ const emmetShortcuts: Record<string, string> = {
 export const Editor = forwardRef<EditorRef, EditorProps>(({
   tabId,
   content,
-  language = 'plaintext', // Default value
+  language = 'plaintext',
   onChange,
   onUndo,
   onRedo,
   onCopy,
   onCut,
   onPaste,
+  onSelectAll,
 }, ref) => {
   const editorRef = useRef<any>(null);
   const [currentTheme, setCurrentTheme] = useState<'dark' | 'light'>('dark');
+  const monacoRef = useRef<any>(null);
 
   // Load theme dari settings
   useEffect(() => {
@@ -125,6 +129,9 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     paste: () => {
       editorRef.current?.trigger('keyboard', 'editor.action.clipboardPasteAction', null);
     },
+    selectAll: () => {
+      editorRef.current?.trigger('keyboard', 'editor.action.selectAll', null);
+    },
     focus: () => {
       editorRef.current?.focus();
     },
@@ -146,17 +153,15 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     },
   }));
 
-  const handleEditorDidMount = (editor: any) => {
+  const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
+    monacoRef.current = monaco;
     editor.focus();
 
     // Set theme awal
     try {
-      const monaco = (window as any).monaco;
-      if (monaco) {
-        const settings = loadSettings();
-        monaco.editor.setTheme(settings.theme === 'dark' ? 'vs-dark' : 'vs-light');
-      }
+      const settings = loadSettings();
+      monaco.editor.setTheme(settings.theme === 'dark' ? 'vs-dark' : 'vs-light');
     } catch (error) {
       console.error('Error setting theme:', error);
     }
@@ -164,51 +169,48 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     // Register completion provider untuk Emmet-like shortcuts
     if (language === 'html') {
       try {
-        const monaco = (window as any).monaco;
-        if (monaco) {
-          const completionProvider = {
-            provideCompletionItems: (model: any, position: any) => {
-              const word = model.getWordUntilPosition(position);
-              const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn,
-              };
+        const completionProvider = {
+          provideCompletionItems: (model: any, position: any) => {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+              startLineNumber: position.lineNumber,
+              endLineNumber: position.lineNumber,
+              startColumn: word.startColumn,
+              endColumn: word.endColumn,
+            };
 
-              const suggestions: any[] = [];
-              
-              for (const [shortcut, expansion] of Object.entries(emmetShortcuts)) {
-                suggestions.push({
-                  label: shortcut,
-                  kind: monaco.languages.CompletionItemKind.Snippet,
-                  detail: 'Emmet Abbreviation',
-                  documentation: `Expand to:\n${expansion}`,
-                  insertText: expansion,
-                  insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                  range: range,
-                });
-              }
+            const suggestions: any[] = [];
+            
+            for (const [shortcut, expansion] of Object.entries(emmetShortcuts)) {
+              suggestions.push({
+                label: shortcut,
+                kind: monaco.languages.CompletionItemKind.Snippet,
+                detail: 'Emmet Abbreviation',
+                documentation: `Expand to:\n${expansion}`,
+                insertText: expansion,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range: range,
+              });
+            }
 
-              const htmlTags = ['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'form', 'input', 'button', 'textarea', 'select', 'option', 'label', 'section', 'article', 'header', 'footer', 'nav', 'main', 'aside'];
-              for (const tag of htmlTags) {
-                suggestions.push({
-                  label: tag,
-                  kind: monaco.languages.CompletionItemKind.Snippet,
-                  detail: 'HTML Tag',
-                  insertText: `<${tag}>$0</${tag}>`,
-                  insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                  range: range,
-                });
-              }
+            const htmlTags = ['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'form', 'input', 'button', 'textarea', 'select', 'option', 'label', 'section', 'article', 'header', 'footer', 'nav', 'main', 'aside'];
+            for (const tag of htmlTags) {
+              suggestions.push({
+                label: tag,
+                kind: monaco.languages.CompletionItemKind.Snippet,
+                detail: 'HTML Tag',
+                insertText: `<${tag}>$0</${tag}>`,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range: range,
+              });
+            }
 
-              return { suggestions };
-            },
-            triggerCharacters: ['<', ' '],
-          };
+            return { suggestions };
+          },
+          triggerCharacters: ['<', ' '],
+        };
 
-          monaco.languages.registerCompletionItemProvider('html', completionProvider);
-        }
+        monaco.languages.registerCompletionItemProvider('html', completionProvider);
       } catch (error) {
         console.error('Error registering completion provider:', error);
       }
@@ -236,45 +238,61 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
       }
     });
 
-    // Keyboard shortcuts for editor
-    try {
-      const monaco = (window as any).monaco;
-      if (monaco) {
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => {
-          editor.trigger('keyboard', 'undo', null);
-          onUndo?.();
-        });
+    // ===== KEYBOARD SHORTCUTS =====
+    
+    // Ctrl+Z - Undo
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => {
+      editor.trigger('keyboard', 'undo', null);
+      onUndo?.();
+    });
 
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => {
-          editor.trigger('keyboard', 'redo', null);
-          onRedo?.();
-        });
+    // Ctrl+Shift+Z - Redo
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => {
+      editor.trigger('keyboard', 'redo', null);
+      onRedo?.();
+    });
 
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {
-          editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null);
-          onCopy?.();
-        });
+    // Ctrl+C - Copy
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {
+      editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null);
+      onCopy?.();
+    });
 
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {
-          editor.trigger('keyboard', 'editor.action.clipboardCutAction', null);
-          onCut?.();
-        });
+    // Ctrl+X - Cut
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {
+      editor.trigger('keyboard', 'editor.action.clipboardCutAction', null);
+      onCut?.();
+    });
 
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
-          editor.trigger('keyboard', 'editor.action.clipboardPasteAction', null);
-          onPaste?.();
-        });
+    // Ctrl+V - Paste - PASTIKAN INI BERFUNGSI
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
+      // Trigger paste action
+      editor.trigger('keyboard', 'editor.action.clipboardPasteAction', null);
+      onPaste?.();
+    });
 
-        // Alt+Z untuk toggle word wrap
-        editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, () => {
-          const current = editor.getOption(monaco.editor.EditorOption.wordWrap);
-          const newValue = current === 'on' ? 'off' : 'on';
-          editor.updateOptions({ wordWrap: newValue });
-        });
-      }
-    } catch (error) {
-      console.error('Error registering shortcuts:', error);
-    }
+    // Ctrl+A - Select All
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA, () => {
+      editor.trigger('keyboard', 'editor.action.selectAll', null);
+      onSelectAll?.();
+    });
+
+    // Ctrl+F - Find
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
+      editor.trigger('keyboard', 'actions.find', null);
+    });
+
+    // Ctrl+H - Replace
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {
+      editor.trigger('keyboard', 'editor.actions.startFindReplaceAction', null);
+    });
+
+    // Alt+Z - Toggle Word Wrap
+    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, () => {
+      const current = editor.getOption(monaco.editor.EditorOption.wordWrap);
+      const newValue = current === 'on' ? 'off' : 'on';
+      editor.updateOptions({ wordWrap: newValue });
+    });
 
     return () => {
       disposable?.dispose();
@@ -286,6 +304,23 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
       onChange(value);
     }
   };
+
+  // Global keyboard listener untuk paste
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+V
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        // Biarkan editor menangani paste
+        // Tapi pastikan editor fokus
+        if (editorRef.current) {
+          // Editor sudah handle sendiri
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (editorRef.current) {
