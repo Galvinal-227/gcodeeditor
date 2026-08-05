@@ -46,7 +46,6 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPuterEnvironment, setIsPuterEnvironment] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -56,14 +55,13 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
     checkEnvironment();
   }, []);
 
-  const checkEnvironment = async () => {
+  const checkEnvironment = () => {
     // Cek apakah di environment Puter
     const isPuter = typeof window !== 'undefined' && !!(window as any).puter;
     setIsPuterEnvironment(isPuter);
     
     if (!isPuter) {
       setIsAvailable(false);
-      setIsLoggedIn(false);
       setMessages([
         {
           id: 'not-puter',
@@ -75,42 +73,59 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
       return;
     }
 
+    // Di Puter environment, cek login status
     try {
       const puter = (window as any).puter;
       if (puter && puter.auth) {
-        try {
-          const user = await puter.auth.getUser();
-          if (user) {
-            setIsLoggedIn(true);
-            setIsAvailable(true);
+        // Coba cek user secara async
+        puter.auth.getUser()
+          .then((user: any) => {
+            if (user) {
+              setIsAvailable(true);
+              setMessages([
+                {
+                  id: 'welcome',
+                  role: 'assistant',
+                  content: 'Hello! I am AetherCode, your AI coding assistant.\n\nI can help you with HTML, CSS, and JavaScript code.\n\nWhat can I help you with today?',
+                  timestamp: new Date()
+                }
+              ]);
+            } else {
+              setIsAvailable(false);
+              setMessages([
+                {
+                  id: 'login-required',
+                  role: 'assistant',
+                  content: 'Login Required\n\nTo use AI Assistant, you need to login to Puter first.\n\nClick the Login button below to continue.',
+                  timestamp: new Date()
+                }
+              ]);
+            }
+          })
+          .catch(() => {
+            setIsAvailable(false);
             setMessages([
               {
-                id: 'welcome',
+                id: 'login-required',
                 role: 'assistant',
-                content: 'Hello! I am AetherCode, your AI coding assistant.\n\nI can help you with HTML, CSS, and JavaScript code.\n\nWhat can I help you with today?',
+                content: 'Login Required\n\nTo use AI Assistant, you need to login to Puter first.\n\nClick the Login button below to continue.',
                 timestamp: new Date()
               }
             ]);
-            return;
+          });
+      } else {
+        setIsAvailable(false);
+        setMessages([
+          {
+            id: 'login-required',
+            role: 'assistant',
+            content: 'Login Required\n\nTo use AI Assistant, you need to login to Puter first.\n\nClick the Login button below to continue.',
+            timestamp: new Date()
           }
-        } catch (e) {
-          console.log('User not logged in to Puter');
-        }
+        ]);
       }
-      
-      setIsLoggedIn(false);
-      setIsAvailable(false);
-      setMessages([
-        {
-          id: 'login-required',
-          role: 'assistant',
-          content: 'Login Required\n\nTo use AI Assistant, you need to login to Puter first.\n\nClick the Login button below to continue.',
-          timestamp: new Date()
-        }
-      ]);
     } catch (error) {
       console.error('Error checking login status:', error);
-      setIsLoggedIn(false);
       setIsAvailable(false);
     }
   };
@@ -120,7 +135,8 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
       const puter = (window as any).puter;
       if (puter && puter.auth) {
         await puter.auth.login();
-        setTimeout(() => checkEnvironment(), 1000);
+        // Setelah login, reload status
+        setTimeout(() => checkEnvironment(), 1500);
       } else {
         alert('Puter SDK not available. Please make sure you are running in Puter environment.');
       }
@@ -215,7 +231,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !isAvailable || !isLoggedIn) return;
+    if (!input.trim() || isLoading || !isAvailable) return;
 
     const userMessage: Message = {
       id: generateId(),
@@ -384,12 +400,12 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
             {!isPuterEnvironment && (
               <span className="text-xs text-red-400">(not available)</span>
             )}
-            {isPuterEnvironment && !isLoggedIn && (
+            {isPuterEnvironment && !isAvailable && (
               <span className="text-xs text-yellow-400">(login required)</span>
             )}
           </div>
           <div className="flex items-center gap-1">
-            {isPuterEnvironment && isLoggedIn && (
+            {isPuterEnvironment && isAvailable && (
               <button
                 onClick={() => puterService.reset()}
                 className="p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
@@ -494,7 +510,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
                 Buka Puter.com
               </a>
             </div>
-          ) : !isLoggedIn ? (
+          ) : !isAvailable ? (
             <div className="text-center py-4">
               <button
                 onClick={handleLogin}
@@ -527,7 +543,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
               </button>
             </div>
           )}
-          {isPuterEnvironment && isLoggedIn && (
+          {isPuterEnvironment && isAvailable && (
             <div className="flex items-center justify-between mt-1.5">
               <span className="text-xs text-[var(--text-secondary)]">
                 {puterService.getRemainingTokens()} tokens remaining
