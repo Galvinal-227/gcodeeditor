@@ -83,6 +83,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   const editorRef = useRef<any>(null);
   const [currentTheme, setCurrentTheme] = useState<'dark' | 'light'>('dark');
   const monacoRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Load theme dari settings
   useEffect(() => {
@@ -127,7 +128,30 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
       editorRef.current?.trigger('keyboard', 'editor.action.clipboardCutAction', null);
     },
     paste: () => {
+      // Method 1: Trigger paste action
       editorRef.current?.trigger('keyboard', 'editor.action.clipboardPasteAction', null);
+      
+      // Method 2: Fallback - paste from clipboard via navigator
+      if (!editorRef.current) return;
+      
+      navigator.clipboard.readText().then(text => {
+        if (text && editorRef.current) {
+          const model = editorRef.current.getModel();
+          if (model) {
+            const position = editorRef.current.getPosition();
+            const range = {
+              startLineNumber: position.lineNumber,
+              startColumn: position.column,
+              endLineNumber: position.lineNumber,
+              endColumn: position.column
+            };
+            model.applyEdits([{ range, text }]);
+          }
+        }
+      }).catch(() => {
+        // Fallback ke trigger biasa
+        editorRef.current?.trigger('keyboard', 'editor.action.clipboardPasteAction', null);
+      });
     },
     selectAll: () => {
       editorRef.current?.trigger('keyboard', 'editor.action.selectAll', null);
@@ -264,9 +288,9 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
       onCut?.();
     });
 
-    // Ctrl+V - Paste - PASTIKAN INI BERFUNGSI
+    // Ctrl+V - Paste
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
-      // Trigger paste action
+      // Trigger paste
       editor.trigger('keyboard', 'editor.action.clipboardPasteAction', null);
       onPaste?.();
     });
@@ -307,19 +331,15 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
 
   // Global keyboard listener untuk paste
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+V
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        // Biarkan editor menangani paste
-        // Tapi pastikan editor fokus
-        if (editorRef.current) {
-          // Editor sudah handle sendiri
-        }
+    const handlePaste = (e: ClipboardEvent) => {
+      // Jika editor fokus, biarkan editor handle
+      if (document.activeElement?.closest('.monaco-editor')) {
+        return;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
   }, []);
 
   useEffect(() => {
@@ -331,7 +351,11 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   const isDark = currentTheme === 'dark';
 
   return (
-    <div className="h-full w-full" style={{ background: isDark ? '#1e1e1e' : '#f5f5f5' }}>
+    <div 
+      ref={containerRef}
+      className="h-full w-full" 
+      style={{ background: isDark ? '#1e1e1e' : '#f5f5f5' }}
+    >
       <MonacoEditor
         key={tabId}
         height="100%"
