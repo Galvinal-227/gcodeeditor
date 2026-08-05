@@ -13,10 +13,10 @@ import {
   RefreshCw,
   Terminal,
   FilePlus,
-  LogIn,
-  MessageSquare
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
-import puterService from '../service/puter.service';
+import puterService from '../services/puter.service';
 
 interface Message {
   id: string;
@@ -47,15 +47,34 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isPuterEnvironment, setIsPuterEnvironment] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    checkLoginStatus();
+    checkEnvironment();
   }, []);
 
-  const checkLoginStatus = async () => {
+  const checkEnvironment = async () => {
+    // Cek apakah di environment Puter
+    const isPuter = typeof window !== 'undefined' && !!(window as any).puter;
+    setIsPuterEnvironment(isPuter);
+    
+    if (!isPuter) {
+      setIsAvailable(false);
+      setIsLoggedIn(false);
+      setMessages([
+        {
+          id: 'not-puter',
+          role: 'assistant',
+          content: 'AI Assistant hanya tersedia di lingkungan Puter.\n\nUntuk menggunakan AI Assistant, silakan:\n1. Buka aplikasi di https://puter.com\n2. Login ke akun Puter Anda\n3. Buka aplikasi ini dari Puter Drive\n\nAI Assistant tidak tersedia di deployment Vercel/Netlify karena membutuhkan akses ke Puter SDK.',
+          timestamp: new Date()
+        }
+      ]);
+      return;
+    }
+
     try {
       const puter = (window as any).puter;
       if (puter && puter.auth) {
@@ -101,7 +120,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
       const puter = (window as any).puter;
       if (puter && puter.auth) {
         await puter.auth.login();
-        setTimeout(() => checkLoginStatus(), 1000);
+        setTimeout(() => checkEnvironment(), 1000);
       } else {
         alert('Puter SDK not available. Please make sure you are running in Puter environment.');
       }
@@ -362,18 +381,23 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-[var(--gold)]" />
             <span className="text-sm font-medium text-[var(--text-primary)]">AI Assistant</span>
-            {!isAvailable && (
-              <span className="text-xs text-red-400">(unavailable)</span>
+            {!isPuterEnvironment && (
+              <span className="text-xs text-red-400">(not available)</span>
+            )}
+            {isPuterEnvironment && !isLoggedIn && (
+              <span className="text-xs text-yellow-400">(login required)</span>
             )}
           </div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => puterService.reset()}
-              className="p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
-              title="Reset Conversation"
-            >
-              <RefreshCw size={14} className="text-[var(--text-secondary)]" />
-            </button>
+            {isPuterEnvironment && isLoggedIn && (
+              <button
+                onClick={() => puterService.reset()}
+                className="p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
+                title="Reset Conversation"
+              >
+                <RefreshCw size={14} className="text-[var(--text-secondary)]" />
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
@@ -454,45 +478,65 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
 
         {/* Input */}
         <div className="p-3 border-t border-[var(--border-color)] flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isAvailable && isLoggedIn ? "Ask AI for help..." : "Login required"}
-              disabled={!isAvailable || !isLoggedIn || isLoading}
-              className="flex-1 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-color)] disabled:opacity-50"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || !isAvailable || !isLoggedIn || isLoading}
-              className="p-2 bg-[var(--accent-color)] text-white rounded hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send size={16} />
-            </button>
-          </div>
-          <div className="flex items-center justify-between mt-1.5">
-            <span className="text-xs text-[var(--text-secondary)]">
-              {isAvailable && isLoggedIn ? (
-                `${puterService.getRemainingTokens()} tokens remaining`
-              ) : isLoggedIn ? (
-                'AI service unavailable'
-              ) : (
-                <button
-                  onClick={handleLogin}
-                  className="text-[var(--accent-color)] hover:text-[var(--accent-hover)] flex items-center gap-1"
-                >
-                  <LogIn size={12} />
-                  Login to use AI
-                </button>
-              )}
-            </span>
-            <span className="text-xs text-[var(--text-secondary)]">
-              Enter to send
-            </span>
-          </div>
+          {!isPuterEnvironment ? (
+            <div className="text-center py-4">
+              <AlertCircle size={32} className="mx-auto text-yellow-400 mb-2" />
+              <p className="text-sm text-[var(--text-secondary)] mb-2">
+                AI Assistant hanya tersedia di lingkungan Puter
+              </p>
+              <a
+                href="https://puter.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent-color)] text-white rounded hover:bg-[var(--accent-hover)] transition-colors text-sm"
+              >
+                <ExternalLink size={14} />
+                Buka Puter.com
+              </a>
+            </div>
+          ) : !isLoggedIn ? (
+            <div className="text-center py-4">
+              <button
+                onClick={handleLogin}
+                className="px-6 py-2 bg-[var(--accent-color)] text-white rounded hover:bg-[var(--accent-hover)] transition-colors text-sm"
+              >
+                Login ke Puter
+              </button>
+              <p className="text-xs text-[var(--text-secondary)] mt-2">
+                Login required to use AI Assistant
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask AI for help..."
+                disabled={isLoading}
+                className="flex-1 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-color)] disabled:opacity-50"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                className="p-2 bg-[var(--accent-color)] text-white rounded hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          )}
+          {isPuterEnvironment && isLoggedIn && (
+            <div className="flex items-center justify-between mt-1.5">
+              <span className="text-xs text-[var(--text-secondary)]">
+                {puterService.getRemainingTokens()} tokens remaining
+              </span>
+              <span className="text-xs text-[var(--text-secondary)]">
+                Enter to send
+              </span>
+            </div>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>
