@@ -301,7 +301,7 @@ export const App: React.FC = () => {
     console.log(`Save all completed: ${successCount} saved, ${failCount} failed`);
   }, [tabs, rootPath, dirHandle, saveContent, saveFileContent]);
 
-  // ===== EDITOR COMMANDS =====
+  // ===== EDITOR COMMANDS (HANYA UNTUK REF, TIDAK DIPAKAI DI TOOLBAR) =====
   const handleUndo = useCallback(() => {
     console.log('Undo triggered');
     editorRef.current?.undo();
@@ -497,8 +497,6 @@ export const App: React.FC = () => {
         onStop={handleStop}
         onSave={handleSave}
         onSaveAll={handleSaveAll}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
         onSearch={() => setActiveView('search')}
         onRefresh={handleRefresh}
         onFullscreen={() => setIsFullscreen(!isFullscreen)}
@@ -506,14 +504,8 @@ export const App: React.FC = () => {
         onNewFile={handleNewFile}
         onToggleGit={() => setActiveView('git')}
         onToggleSettings={() => setActiveView('settings')}
-        onCopy={handleCopy}
-        onCut={handleCut}
-        onPaste={handlePaste}
         isRunning={isRunning}
-        canUndo={canUndo}
-        canRedo={canRedo}
         isFullscreen={isFullscreen}
-        isTerminalOpen={false}
       />
       <Tabs
         tabs={tabs}
@@ -577,14 +569,14 @@ export const App: React.FC = () => {
           </div>
         ) : (
           <div className="h-full flex items-center justify-center text-[var(--text-secondary)]">
-          <div className="text-center">
-            <div className="text-4xl mb-4">
-              <File size={48} className="mx-auto opacity-30" />
+            <div className="text-center">
+              <div className="text-4xl mb-4">
+                <File size={48} className="mx-auto opacity-30" />
+              </div>
+              <p className="text-lg">No file open</p>
+              <p className="text-sm">Open a file from the explorer to start editing</p>
             </div>
-            <p className="text-lg">No file open</p>
-            <p className="text-sm">Open a file from the explorer to start editing</p>
           </div>
-        </div>
         )}
       </div>
     </div>
