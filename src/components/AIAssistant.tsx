@@ -131,21 +131,23 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
   };
 
   const handleLogin = async () => {
-    try {
-      const puter = (window as any).puter;
-      if (puter && puter.auth) {
-        await puter.auth.login();
-        // Setelah login, reload status
-        setTimeout(() => checkEnvironment(), 1500);
-      } else {
-        alert('Puter SDK not available. Please make sure you are running in Puter environment.');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('Login failed or cancelled. Please try again.');
-    }
-  };
+  try {
+    const puter = (window as any).puter;
 
+    if (!puter?.auth) {
+      alert("Puter SDK tidak tersedia");
+      return;
+    }
+
+    await puter.auth.signIn();
+
+    checkEnvironment();
+  } catch (err) {
+    console.error(err);
+    alert(err instanceof Error ? err.message : String(err));
+  }
+};
+  
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
